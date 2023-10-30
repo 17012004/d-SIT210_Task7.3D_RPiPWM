@@ -1,51 +1,47 @@
 import RPi.GPIO as GPIO
 import time
 
-# Define GPIO pins
-TRIG_PIN = 17
-ECHO_PIN = 18
-BUZZER_PIN = 19  # GPIO pin for the buzzer
+GPIO.setwarnings(False)
 
-# Initialize GPIO settings
+TRIG_PIN = 21
+ECHO_PIN = 20
+LED_PIN = 4
+
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(TRIG_PIN, GPIO.OUT)
-GPIO.setup(ECHO_PIN, GPIO.IN)
-GPIO.setup(BUZZER_PIN, GPIO.OUT)
 
-# Function to calculate distance from the Ultrasonic Sensor
-def get_distance():
+GPIO.setup(LED_PIN, GPIO.OUT)
+led_pwm = GPIO.PWM(LED_PIN, 100)
+led_pwm.start(0)
+
+brightness_levels = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+
+while True:
+    # Configure the trigger and echo pins
+    GPIO.setup(TRIG_PIN, GPIO.OUT)
+    GPIO.setup(ECHO_PIN, GPIO.IN)
+
+    GPIO.output(TRIG_PIN, False)
+    time.sleep(0.2)
     GPIO.output(TRIG_PIN, True)
     time.sleep(0.00001)
     GPIO.output(TRIG_PIN, False)
-    
-    pulse_start = time.time()
-    pulse_end = time.time()
-    
+
     while GPIO.input(ECHO_PIN) == 0:
-        pulse_start = time.time()
-    
+        pulse_start_time = time.time()
     while GPIO.input(ECHO_PIN) == 1:
-        pulse_end = time.time()
-    
-    pulse_duration = pulse_end - pulse_start
-    distance = pulse_duration * 17150  # Speed of sound = 343 m/s (17150 cm/s) assume
-    
-    return round(distance, 2)
+        pulse_end_time = time.time()
 
-try:
-    while True:
-        distance = get_distance()
-        print(f"Distance: {distance} cm")
+    pulse_duration = pulse_end_time - pulse_start_time
 
-        # Adjust the buzzer sound based on distance 
-        if distance < 20:
-            GPIO.output(BUZZER_PIN, GPIO.HIGH)
-        else:
-            GPIO.output(BUZZER_PIN, GPIO.LOW)
+    distance = pulse_duration * 17150
+    distance = 2 * round(distance / 2)
 
-        time.sleep(0.1)
+    print("Distance:", distance, "cm")
 
-except KeyboardInterrupt:
-    pass
+    if distance >= 0 and distance <= 20:
+        index = int((distance - 2) / 2)
+        led_pwm.ChangeDutyCycle(brightness_levels[index])
+    else:
+        led_pwm.ChangeDutyCycle(0)
 
-GPIO.cleanup()
+    time.sleep(1)
